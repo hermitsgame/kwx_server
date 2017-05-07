@@ -370,7 +370,7 @@ exports.checkMingSiGui = function (game, sd) {
 	var pai = sd.holds[sd.holds.length - 1];
 
 	// 全频道
-	if (game.conf.wanfa == 0) {
+	if (game.conf.pindao == 0) {
 		for (var i = 0; i < sd.pengs.length; i++) {
 			var peng = sd.pengs[i];
 
@@ -392,7 +392,7 @@ exports.checkMingSiGui = function (game, sd) {
 
 exports.checkAnSiGui = function (game, sd) {
 	// 全频道
-	if (game.conf.wanfa == 0) {
+	if (game.conf.pindao == 0) {
 		for (var i = 0; i < sd.holds.length; ++i) {
 			var pai = sd.holds[i];
 			if (sd.countMap[pai] == 4) {

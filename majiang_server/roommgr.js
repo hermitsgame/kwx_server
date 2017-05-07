@@ -26,7 +26,7 @@ function getGameMgr(type) {
 }
 
 function generateRoomId() {
-	var roomId = "";
+	var roomId = '';
 	for (var i = 0; i < 6; ++i) {
 		roomId += Math.floor(Math.random()*10);
 	}
@@ -90,50 +90,48 @@ function constructRoomFromDb(dbdata) {
 }
 
 exports.createRoom = function(creator, roomConf, gems, ip, port, callback) {
-	var gt = roomConf.type;
-	var gameMgr = getGameMgr(gt);
+	var gameMgr = getGameMgr('kwx');
 	if (null == gameMgr) {
 		callback(1, null);
-		console.log('get mgr fail: ' + gt);
+		console.log('get mgr fail');
 		return;
 	}
 
 	if (!gameMgr.checkConf()) {
-		console.log('check conf fail: ' + gt);
+		console.log('check conf fail');
 		callback(1, null);
 		return;
 	}
 
 	var nSeats = gameMgr.numOfSeats;
 
-	if (
-		roomConf.type == null ||
+	if (roomConf.type == null ||
 		roomConf.difen == null ||
-		roomConf.zuidafanshu == null ||
-		roomConf.jushuxuanze == null)
+		roomConf.maxfan == null ||
+		roomConf.gamenum == null)
 	{
 		callback(1, null);
 		return;
 	}
 
-	if(roomConf.difen < 0 || roomConf.difen > DI_FEN.length){
-		callback(1,null);
+	if (roomConf.difen < 0 || roomConf.difen > DI_FEN.length) {
+		callback(1, null);
 		return;
 	}
 
-	if(roomConf.zuidafanshu < 0 || roomConf.zuidafanshu > MAX_FAN.length){
-		callback(1,null);
+	if (roomConf.maxfan < 0 || roomConf.maxfan > MAX_FAN.length) {
+		callback(1, null);
 		return;
 	}
 
-	if(roomConf.jushuxuanze < 0 || roomConf.jushuxuanze > JU_SHU.length){
-		callback(1,null);
+	if (roomConf.gamenum < 0 || roomConf.gamenum > JU_SHU.length) {
+		callback(1, null);
 		return;
 	}
 	
-	var cost = JU_SHU_COST[roomConf.jushuxuanze];
-	if(cost > gems){
-		callback(2222,null);
+	var cost = JU_SHU_COST[roomConf.gamenum];
+	if (cost > gems) {
+		callback(2222, null);
 		return;
 	}
 
@@ -147,10 +145,10 @@ exports.createRoom = function(creator, roomConf, gems, ip, port, callback) {
 				if (ret) {
 					delete creatingRooms[roomId];
 					fnCreate();
-				} else{
+				} else {
 					var createTime = Math.ceil(Date.now()/1000);
 					var roomInfo = {
-						uuid: "",
+						uuid: '',
 						id: roomId,
 						numOfGames: 0,
 						createTime: createTime,
@@ -159,11 +157,11 @@ exports.createRoom = function(creator, roomConf, gems, ip, port, callback) {
 						numOfSeats: nSeats,
 						gameMgr: gameMgr,
 						conf: {
-							type: gt,
+							type: roomConf.type,
 							creator: creator,
-							baseScore:DI_FEN[roomConf.difen],
-							maxFan:MAX_FAN[roomConf.zuidafanshu],
-							maxGames:JU_SHU[roomConf.jushuxuanze],
+							baseScore: DI_FEN[roomConf.difen],
+							maxFan: MAX_FAN[roomConf.maxfan],
+							maxGames: JU_SHU[roomConf.gamenum],
 						}
 					};
 
@@ -171,13 +169,11 @@ exports.createRoom = function(creator, roomConf, gems, ip, port, callback) {
 
 					gameMgr.parseConf(roomConf, conf)
 
-					//console.log(conf);
-					
 					for (var i = 0; i < nSeats; ++i) {
 						roomInfo.seats.push({
 							userId: 0,
-							score: 0,
-							name: "",
+							score: 1000,
+							name: '',
 							ready: false,
 							seatIndex: i,
 							numZiMo: 0,
@@ -266,12 +262,11 @@ exports.enterRoom = function(roomId, userId, userName, callback) {
 					seatIndex: i
 				};
 
-				db.update_seat_info(roomId, i, seat.userId, "", seat.name);
+				db.update_seat_info(roomId, i, seat.userId, '', seat.name);
 				return 0;
 			}
 		}
 
-		//房间已满
 		return 1;
 	}
 
@@ -403,7 +398,7 @@ exports.exitRoom = function(userId) {
 
 	var seat = room.seats[seatIndex];
 	seat.userId = 0;
-	seat.name = "";
+	seat.name = '';
 
 	var numOfPlayers = 0;
 	for (var i = 0; i < room.numOfSeats; ++i) {

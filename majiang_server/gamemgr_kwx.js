@@ -2375,9 +2375,24 @@ function update() {
 setInterval(update, 1000);
 
 exports.parseConf = function (roomConf, conf) {
-	conf.wanfa = roomConf.wanfaxuanze || 0;
 	conf.dingpiao = roomConf.dingpiao ? true : false;
 	conf.maima = roomConf.maima || 0;
+
+	var type = roomConf.type;
+	if (type == 'xykwx') {
+		conf.pindao = roomConf.pindao || 0;
+	} else if (type == 'xgkwx') {
+		conf.shukan = roomConf.shukan;
+		conf.chkming = roomConf.chkming;
+	} else if (type == 'szkwx') {
+		conf.partming = roomConf.partming;
+	} else if (type == 'sykwx') {
+		conf.pindao = roomConf.pindao || 0;
+		conf.up = roomConf.up;
+		conf.chajiao = roomConf.chajiao;
+	} else if (type == 'yckwx') {
+		conf.pqmb = roomConf.pqmb;
+	}
 }
 
 exports.checkConf = function() {
