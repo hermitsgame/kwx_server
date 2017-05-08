@@ -255,35 +255,27 @@ exports.checkSanYuan7Pairs = function (seatData) {
 		map[29] && map[29] >=2);
 };
 
-function calcCardNum(seatData, k) {
+function calcCardNum(sd, k) {
 	var cnt = 0;
 
-	if (seatData.countMap[k])
-		cnt += seatData.countMap[k];
-
-	for (var i = 0; i < seatData.pengs.length; i++) {
-		if (seatData.pengs[i] == k) {
-			cnt += 3;
-		}
+	if (sd.countMap[k]) {
+		cnt += sd.countMap[k];
 	}
 
-	
-	for (var i = 0; i < seatData.angangs.length; i++) {
-		if (seatData.angangs[i] == k) {
-			cnt += 4;
-		}
+	if (sd.pengs.indexOf(k) != -1) {
+		cnt += 3;
 	}
 
-	for (var i = 0; i < seatData.diangangs.length; i++) {
-		if (seatData.diangangs[i] == k) {
-			cnt += 4;
-		}
+	if (sd.angangs.indexOf(k) != -1) {
+		cnt += 4;
 	}
 
-	for (var i = 0; i < seatData.wangangs.length; i++) {
-		if (seatData.wangangs[i] == k) {
-			cnt += 4;
-		}
+	if (sd.diangangs.indexOf(k) != -1) {
+		cnt += 4;
+	}
+
+	if (sd.wangangs.indexOf(k) != -1) {
+		cnt += 4;
 	}
 
 	return cnt;
@@ -367,10 +359,10 @@ exports.checkKaWuXing = function (seatData) {
 }
 
 exports.checkMingSiGui = function (game, sd) {
-	var pai = sd.holds[sd.holds.length - 1];
+	var strict = !(game.conf.pindao == 0);
 
 	// 全频道
-	if (game.conf.pindao == 0) {
+	if (!strict) {
 		for (var i = 0; i < sd.pengs.length; i++) {
 			var peng = sd.pengs[i];
 
@@ -380,6 +372,7 @@ exports.checkMingSiGui = function (game, sd) {
 		}
 	// 半频道
 	} else {
+		var pai = sd.holds[sd.holds.length - 1];
 		for (var i = 0; i < sd.pengs.length; i++) {
 			if (sd.pengs[i] == pai) {
 				return true;
@@ -391,8 +384,10 @@ exports.checkMingSiGui = function (game, sd) {
 };
 
 exports.checkAnSiGui = function (game, sd) {
+	var strict = game.conf.pindao == 1 || game.conf.type == 'xgkwx';
+
 	// 全频道
-	if (game.conf.pindao == 0) {
+	if (!strict) {
 		for (var i = 0; i < sd.holds.length; ++i) {
 			var pai = sd.holds[i];
 			if (sd.countMap[pai] == 4) {
@@ -437,4 +432,30 @@ exports.checkQingYiSe = function (sd) {
 	return false;
 };
 
+exports.shuKan = function(sd) {
+	var kan = sd.angangs.length + sd.wangangs.length + sd.diangangs.length;
+
+	return kan + exports.calcHoldMultiCardNum(sd, 3);
+};
+
+exports.getMaxColor = function(sd) {
+	var colors = [ [ 0, 9 ], [ 9, 18 ], [ 27, 30 ] ];
+	var max = 0;
+
+	for (var i = 0; i < colors.length; i++) {
+		var num = 0;
+		for (var j = colors[i][0]; j < colors[i][1]; j++) {
+			var c = sd.countMap[j];
+			if (c != null) {
+				num += c;
+			}
+		}
+
+		if (num > max) {
+			max = num;
+		}
+	}
+
+	return max;
+};
 

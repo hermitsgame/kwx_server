@@ -117,8 +117,6 @@ exports.start = function(config, mgr) {
 			//玩家上线，强制设置为TRUE
 			if (!roomMgr.needDingPiao(userId)) {
 				gameMgr.setReady(userId);
-			} else {
-				console.log('need dingpiao');
 			}
 
 			socket.emit('login_finished');
@@ -168,7 +166,6 @@ exports.start = function(config, mgr) {
 				return;
 			}
 
-			console.log('dingpiao: ' + data);
 			var piao = 0;
 			if (typeof(data) == "number"){
 				piao = data;
@@ -225,7 +222,6 @@ exports.start = function(config, mgr) {
 				return;
 			}
 
-			console.log('sock get chupai');
 			socket.gameMgr.chuPai(uid, data);
 		});
 
@@ -280,8 +276,6 @@ exports.start = function(config, mgr) {
 			if (uid == null) {
 				return;
 			}
-
-			console.log(typeof(data));
 
 			if (typeof(data) == "string") {
 				data = JSON.parse(data);
