@@ -702,6 +702,7 @@ function getNumOfGen(seatData) {
 
 function getFan(game, sd, pai) {
 	var info = sd.tingMap[pai];
+	var type = game.conf.type;
 
 	sd.holds.push(pai);
 	if (sd.countMap[pai] != null) {
@@ -1576,6 +1577,8 @@ exports.setReady = function(userId, callback) {
 			if (sd.userId == userId) {
 				s.holds = sd.holds;
 				seatData = sd;
+			} else if (sd.hasMingPai) {
+				s.holds = sd.holds;
 			}
 
 			data.seats.push(s);
