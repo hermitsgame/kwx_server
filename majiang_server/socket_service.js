@@ -515,7 +515,7 @@ exports.start = function(config, mgr) {
 			}
 
 			var roomInfo = roomMgr.getRoom(roomId);
-			if (roomInfo.dissolveDone) {
+			if (roomInfo.dissolveDone || roomInfo.end) {
 				return;
 			}
 

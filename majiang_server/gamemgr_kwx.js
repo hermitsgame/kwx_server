@@ -59,6 +59,12 @@ function shuffle(game) {
 	}
 }
 
+function dice(game) {
+	var dice = game.dice;
+	dice.push((Math.floor(Math.random() * 100) % 6) + 1);
+	dice.push((Math.floor(Math.random() * 1000) % 6) + 1);
+}
+
 function maiMa(game) {
 	if (game.currentIndex == game.mahjongs.length) {
 		return -1;
@@ -1348,6 +1354,8 @@ function doGameOver(game, userId, forceEnd) {
 
 			//如果局数已够，则进行整体结算，并关闭房间
 			if (isEnd) {
+				roomInfo.end = true;
+
 				setTimeout(function() {
 					if (roomInfo.numOfGames > 1) {
 						store_history(roomInfo);    
@@ -1685,6 +1693,8 @@ exports.begin = function(roomId) {
 		firstMingPai: -1,
 
 		baseScore: roomInfo.conf.baseScore,
+
+		dices: [],
 	};
 
 	if (game.conf.up && roomInfo.nextUp != null) {
@@ -1776,6 +1786,9 @@ exports.begin = function(roomId) {
 
 	//洗牌
 	shuffle(game);
+
+	dice(game);
+
 	//发牌
 	deal(game);
 
@@ -1822,7 +1835,6 @@ exports.begin = function(roomId) {
 	turnSeat.canChuPai = true;
 	userMgr.broacastInRoom('game_chupai_push', turnSeat.userId, turnSeat.userId, true);
 	//检查是否可以暗杠或者胡
-	//直杠
 	checkCanAnGang(game, turnSeat);
 	//检查胡 用最后一张来检查
 	checkCanHu(game,turnSeat,turnSeat.holds[turnSeat.holds.length - 1]);
@@ -1878,8 +1890,8 @@ exports.chuPai = function(userId, pai) {
 
 	//检查是否有人要胡，要碰 要杠
 	var hasActions = false;
-	for(var i = 0; i < game.gameSeats.length; ++i){
-		//玩家自己不检查
+	var hasHu = false;
+	for (var i = 0; i < game.gameSeats.length; i++) {
 		if (game.turn == i) {
 			continue;
 		}
@@ -1891,10 +1903,25 @@ exports.chuPai = function(userId, pai) {
 		checkCanHu(game, gs, pai);
 
 		if (hasOperations(gs)) {
-		    sendOperations(game, gs, game.chuPai);
-		    hasActions = true;
+			hasActions = true;
+		}
+
+		if (gs.canHu) {
+			hasHu = true;
 		}
 	}
+
+	for (var i = 0; i < game.gameSeats.length; i++) {
+		if (game.turn == i) {
+                        continue;
+                }
+
+		var gs = game.gameSeats[i];
+		if (gs.canHu || !hasHu) {
+			sendOperations(game, gs, game.chuPai);
+		}
+	}
+
 	
 	//如果没有人有操作，则向下一家发牌，并通知他出牌
 	if (!hasActions) {
@@ -1981,6 +2008,8 @@ exports.peng = function(userId) {
 	//碰的玩家打牌
 	moveToNextUser(game, seatData.seatIndex);
 
+	checkCanAnGang(game, seatData);    
+	checkCanWanGang(game, seatData);    
 	checkCanMingPai(game, seatData);
 
 	//广播通知玩家出牌方
@@ -2323,18 +2352,20 @@ exports.hu = function(userId) {
 		notify = hupai;
 		huData.pai = hupai;
 		if (huData.isGangHu) {
+			huData.action = "ganghua";
+			huData.iszimo = true;
+/* TODO
 			if(turnSeat.lastFangGangSeat == seatIndex){
 				huData.action = "ganghua";
 				huData.iszimo = true;
 			} else {
 				console.log('dianganghua');
-/* TODO
 				var diangganghua_zimo = game.conf.dianganghua == 1;
 				huData.action = "dianganghua";
 				huData.iszimo = diangganghua_zimo;
 				huData.target = turnSeat.lastFangGangSeat;
-*/
 			}
+*/
 		} else {
 			huData.action = "zimo";
 			huData.iszimo = true;
@@ -2475,6 +2506,17 @@ exports.guo = function(userId) {
 	if (game.firstHupai >= 0) {
 		doGameOver(game, userId);
 		return;
+	}
+
+	for (var i = 0; i < game.gameSeats.length; ++i) {
+		var gs = game.gameSeats[i];
+		if (hasOperations(gs)) {
+			if (!gs.canHu) {
+				sendOperations(game, gs, game.chuPai);
+			}
+
+			return;
+		}
 	}
 
 	//如果是已打出的牌，则需要通知
