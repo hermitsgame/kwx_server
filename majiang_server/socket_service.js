@@ -115,9 +115,9 @@ exports.start = function(config, mgr) {
 			socket.gameMgr = gameMgr;
 
 			//玩家上线，强制设置为TRUE
-			if (!roomMgr.needDingPiao(userId)) {
-				gameMgr.setReady(userId);
-			}
+			//if (!roomMgr.needDingPiao(userId)) {
+			//	gameMgr.setReady(userId);
+			//}
 
 			socket.emit('login_finished');
 

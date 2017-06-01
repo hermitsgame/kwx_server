@@ -60,9 +60,9 @@ function shuffle(game) {
 }
 
 function dice(game) {
-	var dice = game.dice;
-	dice.push((Math.floor(Math.random() * 100) % 6) + 1);
-	dice.push((Math.floor(Math.random() * 1000) % 6) + 1);
+	var dices = game.dices;
+	dices.push((Math.floor(Math.random() * 100) % 6) + 1);
+	dices.push((Math.floor(Math.random() * 1000) % 6) + 1);
 }
 
 function maiMa(game) {
@@ -105,6 +105,97 @@ function mopai(game, seatIndex) {
 	game.currentIndex ++;
 
 	return pai;
+}
+
+function new_deal(game, cb) {
+	game.currentIndex = 0;
+
+	var seatIndex = game.button;
+	var numOfSeats = game.numOfSeats;
+
+	for (var i = 0; i < (numOfSeats * 13); i++) {
+		var mahjongs = game.gameSeats[seatIndex].holds;
+
+		if (mahjongs == null) {
+			mahjongs = [];
+			game.gameSeats[seatIndex].holds = mahjongs;
+		}
+
+		mopai(game, seatIndex);
+		seatIndex = (seatIndex + 1) % numOfSeats;
+	}
+
+	mopai(game, game.button);
+	game.turn = game.button;
+
+	var actions = [];
+	var seats = game.roomInfo.seats;
+	var nums = [ 0, 0, 0];
+
+	var execute = function() {
+		if (actions.length == 0) {
+			if (cb) {
+				cb();
+			}
+
+			return;
+		}
+
+		var act = actions[0];
+		var si = act.seatIndex;
+		var s = seats[si];
+		var uid = s.userId;
+
+		nums[si] = act.holds.length;
+
+		userMgr.sendMsg(uid, 'game_holds_update_push', act.holds);
+
+		userMgr.broacastInRoom('game_holds_len_push', { seatIndex: si, len: act.holds.length }, uid, false);
+
+		var numOfMJ = game.mahjongs.length;
+		for (var i = 0; i < nums.length; i++) {
+			numOfMJ -= nums[i];
+		}
+
+		userMgr.broacastInRoom('mj_count_push', numOfMJ, uid, true);
+
+		actions.splice(0, 1);
+
+		setTimeout(execute, act.to);
+	};
+
+	seatIndex = game.button;
+
+	for (var j = 0; j  < 3; j++) {
+		for (var i = 0; i < numOfSeats; i++) {
+			var holds = game.gameSeats[seatIndex].holds;
+			var act = {
+				seatIndex: seatIndex,
+				holds: holds.slice(0, (j + 1) * 4),
+				to: 250,
+			};
+
+			actions.push(act);
+
+			seatIndex = (seatIndex + 1) % numOfSeats;
+		}
+	}
+
+	seatIndex = game.button;
+	for (var i = 0; i < numOfSeats; i++) {
+		var holds = game.gameSeats[seatIndex].holds;
+		var act = {
+			seatIndex: seatIndex,
+			holds: holds.slice(0),
+			to: 200,
+		};
+
+		actions.push(act);
+
+		seatIndex = (seatIndex + 1) % numOfSeats;
+	}
+
+	execute();
 }
 
 function deal(game) {
@@ -1784,64 +1875,69 @@ exports.begin = function(roomId) {
 
 	games[roomId] = game;
 
-	//洗牌
 	shuffle(game);
 
 	dice(game);
 
-	//发牌
-	deal(game);
-
-	var numOfMJ = game.mahjongs.length - game.currentIndex;
-
 	for (var i = 0; i < seats.length; ++i) {
-		//开局时，通知前端必要的数据
 		var s = seats[i];
-		//通知玩家手牌
-		userMgr.sendMsg(s.userId, 'game_holds_push', game.gameSeats[i].holds);
-		//通知还剩多少张牌
-		userMgr.sendMsg(s.userId, 'mj_count_push', numOfMJ);
-		//通知还剩多少局
-		userMgr.sendMsg(s.userId, 'game_num_push', roomInfo.numOfGames);
-		//通知游戏开始
-		userMgr.sendMsg(s.userId, 'game_begin_push', game.button);
 
+		userMgr.sendMsg(s.userId, 'game_num_push', roomInfo.numOfGames);
+		userMgr.sendMsg(s.userId, 'game_begin_push', game.button);
 	}
 
-	construct_game_base_info(game);
+	var notify = function() {
+		var numOfMJ = game.mahjongs.length - game.currentIndex;
+
+		for (var i = 0; i < seats.length; ++i) {
+			var s = seats[i];
+
+			userMgr.sendMsg(s.userId, 'game_holds_updated_push');
+		}
+
+		construct_game_base_info(game);
+
+		var turnSeat = game.gameSeats[game.turn];
+		userMgr.broacastInRoom('game_playing_push', null, turnSeat.userId, true);
+
+		//进行听牌检查
+		for (var i = 0; i < game.gameSeats.length; ++i) {
+			var duoyu = -1;
+			var gs = game.gameSeats[i];
+			if (gs.holds.length == 14) {
+				duoyu = gs.holds.pop();
+				gs.countMap[duoyu] -= 1;
+			}
+
+			checkCanTingPai(game, gs);
+
+			if (duoyu >= 0) {
+				gs.holds.push(duoyu);
+				gs.countMap[duoyu] ++;
+			}
+		}
+
+		game.state = "playing";
+		//通知玩家出牌方
+		turnSeat.canChuPai = true;
+		userMgr.broacastInRoom('game_chupai_push', turnSeat.userId, turnSeat.userId, true);
+		//检查是否可以暗杠或者胡
+		checkCanAnGang(game, turnSeat);
+		//检查胡 用最后一张来检查
+		checkCanHu(game,turnSeat,turnSeat.holds[turnSeat.holds.length - 1]);
+
+		checkCanMingPai(game, turnSeat);
+		//通知前端
+		sendOperations(game, turnSeat, game.chuPai);
+	};
 
 	var turnSeat = game.gameSeats[game.turn];
-	userMgr.broacastInRoom('game_playing_push', null, turnSeat.userId, true);
+	userMgr.broacastInRoom('game_dice_push', game.dices, turnSeat.userId, true);
+	console.log(game.dices);
 
-	//进行听牌检查
-	for (var i = 0; i < game.gameSeats.length; ++i) {
-		var duoyu = -1;
-		var gs = game.gameSeats[i];
-		if (gs.holds.length == 14) {
-			duoyu = gs.holds.pop();
-			gs.countMap[duoyu] -= 1;
-		}
-
-		checkCanTingPai(game, gs);
-
-		if (duoyu >= 0) {
-			gs.holds.push(duoyu);
-			gs.countMap[duoyu] ++;
-		}
-	}
-
-	game.state = "playing";
-	//通知玩家出牌方
-	turnSeat.canChuPai = true;
-	userMgr.broacastInRoom('game_chupai_push', turnSeat.userId, turnSeat.userId, true);
-	//检查是否可以暗杠或者胡
-	checkCanAnGang(game, turnSeat);
-	//检查胡 用最后一张来检查
-	checkCanHu(game,turnSeat,turnSeat.holds[turnSeat.holds.length - 1]);
-
-	checkCanMingPai(game, turnSeat);
-	//通知前端
-	sendOperations(game, turnSeat, game.chuPai);
+	setTimeout(function() {
+		new_deal(game, notify);
+	}, 1000);
 };
 
 exports.chuPai = function(userId, pai) {

@@ -31,7 +31,7 @@ exports.getOnlineCount = function() {
 }
 
 exports.sendMsg = function(userId, event, msgdata) {
-	console.log(event);
+	//console.log(userId + ' ' + event);
 	var socket = userList[userId];
 	if (socket) {
 		socket.emit(event, msgdata);
