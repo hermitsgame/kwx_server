@@ -343,11 +343,16 @@ exports.create_user = function(account,name,coins,gems,sex,headimg,callback){
     var sql = 'INSERT INTO t_users(account,name,coins,gems,sex,headimg) VALUES("{0}","{1}",{2},{3},{4},{5})';
     sql = sql.format(account,name,coins,gems,sex,headimg);
     console.log(sql);
-    query(sql, function(err, rows, fields) {
+    query(sql, function(err) {
         if (err) {
             throw err;
         }
-        callback(true);
+
+        var sql = 'INSERT INTO t_bind(uid, name) VALUES((SELECT userid FROM t_users WHERE account = "' + account + '"), "' + name + '")';
+        console.log(sql);
+        query(sql, function(err) {
+            callback(err == null);
+        });
     });
 };
 
@@ -700,6 +705,167 @@ exports.update_game_result = function(room_uuid,index,result,callback){
         else{
             callback(true);
         }
+    });
+};
+
+exports.get_bind_info = function(uid, callback) {
+    callback = callback == null? nop : callback;
+    if (uid == null) {
+        callback(null);
+        return;
+    }
+
+    var sql = 'SELECT * FROM t_bind WHERE uid = ' + uid + ' OR bid = ' + uid;
+    console.log(sql);
+    query(sql, function(err, rows, fields) {
+        if (err) {
+            callback(null);
+            throw err;
+        }
+
+        if (rows.length == 0) {
+            callback(null);
+            return;
+        }
+
+        var data = {
+            uid: uid,
+            total: 0,
+            avail: 0,
+            binds: [],
+        };
+
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+
+            console.log(row);
+            if (row.uid == uid) {
+                data.total = row.award_total;
+                data.avail = row.award_avail;
+                data.bid = row.bid;
+                data.name = crypto.fromBase64(row.name);
+            } else {
+                data.binds.push({ name: crypto.fromBase64(row.name), time: row.btime, fr: row.fr });
+            }
+        }
+
+        callback(data);
+    });
+};
+
+exports.bind = function(uid, bid, callback) {
+    callback = callback == null? nop : callback;
+    if (uid == null || bid == null) {
+        callback(false);
+        return;
+    }
+
+    var sql = 'SELECT * FROM t_bind WHERE uid = ' + uid;
+    query(sql, function(err, rows, fields) {
+        if (err || rows.length == 0) {
+            callback(false);
+            throw err;
+        } else {
+            var row = rows[0];
+
+            if (row.bid > 0) {
+                callback(false);
+                return;
+            }
+
+            var btime = Math.ceil(Date.now()/1000);
+            var sql = 'UPDATE t_bind SET award_avail = award_avail + 3, bid = ' + bid + ', btime = ' + btime + ' WHERE uid = ' + uid;
+            var sql2 = 'UPDATE t_bind SET award_avail = award_avail + 3 WHERE uid = ' + bid;
+
+            query(sql, function(err) {
+                if (!err) {
+                    query(sql2, function(err) {
+                        if (!err) {
+                            callback(true);
+                        } else {
+                            callback(false);
+                        }
+                    });
+                } else {
+                    console.log('6');
+                    callback(false);
+                }
+            });
+        }
+    });
+};
+
+exports.bind_done = function(uid, callback) {
+    callback = callback == null? nop: callback;
+    if (uid == null) {
+        callback(false);
+        return;
+    }
+
+    var sql = 'SELECT * FROM t_bind WHERE uid = ' + uid;
+    query(sql, function(err, rows, fields) {
+        if (err || rows.length == 0) {
+            callback(false);
+            throw err;
+        } else {
+            var row = rows[0];
+
+            if (row.bid == 0) {
+                callback(false);
+                return;
+            }
+
+            var sql = 'UPDATE t_bind SET award_avail = award_avail + 3, fr = 1 WHERE uid = ' + uid;
+            var sql2 = 'UPDATE t_bind SET award_avail = award_avail + 6 WHERE uid = ' + row.bid;
+
+            query(sql, function(err) {
+                if (!err) {
+                    query(sql2, function(err) {
+                        if (!err) {
+                            callback(true);
+                        } else {
+                            callback(false);
+                        }
+                    });
+                } else {
+                    callback(false);
+                }
+            });
+        }
+    });
+};
+
+exports.get_awards = function(uid, callback) {
+    callback = callback == null? nop: callback;
+    if (uid == null) {
+        callback(false);
+        return;
+    }
+
+    var sql = 'SELECT award_avail FROM t_bind WHERE uid = ' + uid;
+    query(sql, function(err, rows, fields) {
+        if (err || rows.length == 0) {
+            callback(false);
+            return;
+        }
+
+        var avail = rows[0].award_avail;
+        if (avail == 0) {
+            callback(false);
+            return;
+        }
+
+        exports.add_user_gems(uid, avail, function(ret) {
+            if (!ret) {
+                callback(false);
+                return;
+            }
+
+            var sql = 'UPDATE t_bind SET award_total = award_total + award_avail, award_avail = 0 WHERE uid = ' + uid;
+            query(sql, function(err) {
+                callback(err == null);
+            });
+        });
     });
 };
 

@@ -276,6 +276,73 @@ app.get('/get_user_status', function(req, res) {
 	});
 });
 
+app.get('/get_bind_info', function(req, res) {
+	if (!check_account(req, res)) {
+		return;
+	}
+
+	var uid = req.query.uid;
+
+	db.get_bind_info(uid, function(data) {
+		if (data != null) {
+			http.send(res, 0, "ok", { data: data });
+		} else {
+			http.send(res, 1, "get bind info failed.");
+		}
+	});
+});
+
+app.get('/bind', function(req, res) {
+	if (!check_account(req, res)) {
+		return;
+	}
+
+	var uid = req.query.uid;
+	var bid = req.query.bid;
+
+	console.log(uid);
+	console.log(bid);
+	db.bind(uid, bid, function(data) {
+		if (data) {
+			http.send(res, 0, "ok");
+		} else {
+			http.send(res, 1, "bind failed.");
+		}
+	})
+});
+
+app.get('/bind_done', function(req, res) {
+	if (!check_account(req, res)) {
+                return;
+        }
+
+	var uid = req.query.uid;
+
+	db.bind_done(uid, function(data) {
+		if (data) {
+                        http.send(res, 0, "ok");
+                } else {
+                        http.send(res, 1, "bind_done failed.");
+                }
+	});
+});
+
+app.get('/get_awards', function(req, res) {
+	if (!check_account(req, res)) {
+                return;
+        }
+
+	var uid = req.query.uid;
+
+	db.get_awards(uid, function(data) {
+		if (data) {
+                        http.send(res, 0, "ok");
+                } else {
+                        http.send(res, 1, "get_award failed.");
+                }
+	});
+});
+
 app.get('/get_message', function(req, res) {
 	if (!check_account(req, res)) {
 		return;

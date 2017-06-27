@@ -78,6 +78,8 @@ app.get('/get_serverinfo', function(req, res) {
 		appweb: config.APP_WEB,
 	}
 
+	console.log('get_serverinfo');
+
 	send(res, ret);
 });
 

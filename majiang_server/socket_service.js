@@ -253,6 +253,19 @@ exports.start = function(config, mgr) {
 			socket.gameMgr.gang(uid, pai);
 		});
 
+		socket.on('chi', function(data) {
+			var uid = socket.userId;
+			if (uid == null) {
+				return;
+			}
+
+			if (typeof(data) == "string") {
+				data = JSON.parse(data);
+			}
+
+			socket.gameMgr.chi(uid, data);
+		});
+
 		socket.on('hu', function(data) {
 			var uid = socket.userId;
 			if (uid == null) {

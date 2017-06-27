@@ -158,3 +158,16 @@ CREATE TABLE `t_users` (
 -- ----------------------------
 -- Records of t_users
 -- ----------------------------
+
+DROP TABLE IF EXISTS `t_bind`;
+CREATE TABLE `t_bind` (
+  `uid` int(11) unsigned NOT NULL COMMENT '用户ID',
+  `bid` int(11) unsigned DEFAULT '0' COMMENT '绑定用户ID',
+  `name` varchar (32) DEFAULT NULL COMMENT '用户昵称',
+  `btime` int(11) DEFAULT '0',
+  `fr` int(1) DEFAULT '0',
+  `award_total` int(11) DEFAULT '0',
+  `award_avail` int(11) DEFAULT '0',
+  PRIMARY KEY (`uid`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8;
+
