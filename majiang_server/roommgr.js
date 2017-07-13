@@ -45,6 +45,7 @@ function constructRoomFromDb(dbdata) {
 		numOfGames: dbdata.num_of_turns,
 		createTime: dbdata.create_time,
 		nextButton: dbdata.next_button,
+		continuousButton: 1,
 		//seats: new Array(4),
 		conf: JSON.parse(dbdata.base_info)
 	};
@@ -77,6 +78,9 @@ function constructRoomFromDb(dbdata) {
 		s.numAnGang = 0;
 		s.numMingGang = 0;
 		s.numChaJiao = 0;
+
+		s.stat = {};
+		s.conf = {};
 
 		if (s.userId > 0) {
 			userLocation[s.userId] = {
@@ -173,6 +177,7 @@ exports.createRoom = function(creator, roomConf, gems, ip, port, callback) {
 						numOfGames: 0,
 						createTime: createTime,
 						nextButton: 0,
+						continuousButton: 1,
 						seats: [],
 						numOfSeats: nSeats,
 						gameMgr: gameMgr,
@@ -192,7 +197,7 @@ exports.createRoom = function(creator, roomConf, gems, ip, port, callback) {
 					gameMgr.parseConf(roomConf, conf)
 
 					for (var i = 0; i < nSeats; ++i) {
-						roomInfo.seats.push({
+						var s = {
 							userId: 0,
 							score: 1000,
 							name: '',
@@ -205,7 +210,15 @@ exports.createRoom = function(creator, roomConf, gems, ip, port, callback) {
 							numMingGang: 0,
 							numChaJiao: 0,
 							dingpiao: -1,
-						});
+							stat: {},
+							conf: {},
+						};
+
+						if (gameMgr.initRoomSeat != null) {
+							gameMgr.initRoomSeat(s);
+						}
+
+						roomInfo.seats.push(s);
 					}
 
 					//写入数据库

@@ -2318,11 +2318,6 @@ exports.ming = function(uid, data) {
 
 	userMgr.broacastInRoom('ming_notify_push', data, uid, true);
 
-	console.log("ming_notify_push");
-	console.log(data.kou);
-	console.log(data.tings);
-	console.log(sd.holds);
-
 	if (game.firstMingPai < 0) {
 		game.firstMingPai = sd.seatIndex;
 	}

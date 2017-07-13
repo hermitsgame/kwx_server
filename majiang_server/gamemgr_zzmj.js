@@ -1,10 +1,10 @@
 
-var roomMgr = require("./roommgr");
-var userMgr = require("./usermgr");
+var roomMgr = require('./roommgr');
+var userMgr = require('./usermgr');
 var mjutils = require('./mjutils');
 var wcutils = require('./wildcard');
 var wzmj = require('./wzmj');
-var db = require("../utils/db");
+var db = require('../utils/db');
 var crypto = require("../utils/crypto");
 
 var games = {};
@@ -19,15 +19,38 @@ var ACTION_HU = 6;
 var ACTION_ZIMO = 7;
 var ACTION_MING = 8;
 
-var HOLDS_NUM = 16;
-var TOTAL_MJNUM = 136;
-
+var HOLDS_NUM = 13;
 var gameSeatsOfUsers = {};
 
 var MJ_TYPE_WAN = 1;
 var MJ_TYPE_TIAO = 2;
 var MJ_TYPE_TONG = 3;
 var MJ_TYPE_FENG = 4;
+
+var allMJs = [  11, 12, 13, 14, 15, 16, 17, 18, 19, 
+		21, 22, 23, 24, 25, 26, 27, 28, 29,
+		31, 32, 33, 34, 35, 36, 37, 38, 39 ];
+
+var allMJs_2P = [ 11, 12, 13, 14, 15, 16, 17, 18, 19,
+		  41, 42, 43, 44, 45, 46, 47 ];
+
+function getAllMJs(nSeats) {
+	if (4 == nSeats) {
+		return allMJs;
+	} else {
+		return allMJs_2P;
+	}
+}
+
+function getMJNum(nSeats) {
+	var totals = [ 64, 108 ];
+
+	if (4 == nSeats) {
+		return totals[1];
+	} else {
+		return totals[0];
+	}
+}
 
 function getMJType(pai) {
 	return parseInt(pai / 10);
@@ -39,6 +62,7 @@ function getMJVal(pai) {
 
 function shuffle(game) {
 	var mahjongs = game.mahjongs;
+	var nSeats = game.numOfSeats;
 
 	// 万: 11 - 19
 	var count = 0;
@@ -49,27 +73,29 @@ function shuffle(game) {
 		}
 	}
 
-	// 条: 21 - 29
-	for (var i = 21; i < 30; i++) {
-		for (var c = 0; c < 4; c++) {
-			mahjongs[count] = i;
-			count++;
+	if (4 == nSeats) {
+		// 条: 21 - 29
+		for (var i = 21; i < 30; i++) {
+			for (var c = 0; c < 4; c++) {
+				mahjongs[count] = i;
+				count++;
+			}
 		}
-	}
 
-	// 筒: 31 - 39
-	for (var i = 31; i < 40; i++) {
-		for (var c = 0; c < 4; c++) {
-			mahjongs[count] = i;
-			count++;
+		// 筒: 31 - 39
+		for (var i = 31; i < 40; i++) {
+			for (var c = 0; c < 4; c++) {
+				mahjongs[count] = i;
+				count++;
+			}
 		}
-	}
-
-	// 东南西北中发白: 41 - 47
-	for (var i = 41; i < 48; i++) {
-		for (var c = 0; c < 4; c++) {
-			mahjongs[count] = i;
-			count++;
+	} else {
+		// 东南西北中发白: 41 - 47
+		for (var i = 41; i < 48; i++) {
+			for (var c = 0; c < 4; c++) {
+				mahjongs[count] = i;
+				count++;
+			}
 		}
 	}
 
@@ -87,14 +113,6 @@ function dice(game) {
 
 	dices.push((Math.floor(Math.random() * 100) % 6) + 1);
 	dices.push((Math.floor(Math.random() * 1000) % 6) + 1);
-}
-
-function wildcard(game) {
-	var mahjongs = game.mahjongs;
-	var index = Math.floor(Math.random() * (mahjongs.length - 1));
-
-	game.wildcard = mahjongs[index];
-	mahjongs.splice(index, 1);
 }
 
 function mopai(game, seatIndex) {
@@ -210,59 +228,7 @@ function checkCanPeng(game, seatData, pai) {
 }
 
 function checkCanChi(game, seatData, pai) {
-	var turn = game.turn;
-	var numOfSeats = game.numOfSeats;
-	var si = seatData.seatIndex;
-	var countMap = seatData.countMap;
-	var wc = game.wildcard;
-	var chiTypes = seatData.chiTypes = [];
-
-	if (pai == 47) {
-		pai = wc;
-	}
-
-	if (si != (turn + 1) % numOfSeats || MJ_TYPE_FENG == getMJType(pai)) {
-		return;
-	}
-
-	var pai1 = 0;
-	var pai2 = 0;
-	var val = getMJVal(pai);
-
-	// head
-	if (val <= 7) {
-		pai1 = (wc == pai + 1) ? 47 : pai + 1;
-		pai2 = (wc == pai + 2) ? 47 : pai + 2;
-		if (countMap[pai1] && countMap[pai1] > 0 &&
-			countMap[pai2] && countMap[pai2] > 0)
-		{
-			chiTypes.push(0);
-		}
-	}
-
-	// middle
-	if (val > 1 && val < 9) {
-		pai1 = (wc == pai - 1) ? 47 : pai - 1;
-		pai2 = (wc == pai + 1) ? 47 : pai + 1;
-		if (countMap[pai1] && countMap[pai1] > 0 &&
-			countMap[pai2] && countMap[pai2] > 0)
-		{
-			chiTypes.push(1);
-		}
-	}
-
-	// tail
-	if (val >= 3) {
-		pai1 = (wc == pai - 2) ? 47 : pai - 2;
-		pai2 = (wc == pai - 1) ? 47 : pai - 1;
-		if (countMap[pai1] && countMap[pai1] > 0 &&
-			countMap[pai2] && countMap[pai2] > 0)
-		{
-			chiTypes.push(2);
-		}
-	}
-
-	seatData.canChi = chiTypes.length > 0;
+	return;
 }
 
 function checkCanDianGang(game, seatData, pai) {
@@ -309,14 +275,13 @@ function checkCanWanGang(game, seatData) {
 function checkCanHu(game, seatData, pai) {
 	game.lastHuPaiSeat = -1;
 
-	var zimo = (game.turn == seatData.seatIndex);
-	var tings = seatData.tings;
-
-	if (tings.indexOf(pai) == -1) {
+	if (game.conf.zimo && game.chuPai != -1) {
 		return;
 	}
 
-	if (!zimo && tings.length == 34) {
+	var tings = seatData.tings;
+
+	if (tings.indexOf(pai) == -1) {
 		return;
 	}
 
@@ -391,52 +356,9 @@ function clearAllOptions(game, seatData) {
 	}
 }
 
-function getWildcardNum(game, sd) {
-	var wc = game.wildcard;
-	var c  = sd.countMap[wc];
-
-	return c != null ? c : 0;
-}
-
-function convert(holds, wc) {
-	var ret = [];
-
-	for (var i = 0; i < holds.length; i++) {
-		var pai = holds[i];
-		if (pai == wc) {
-			pai = 51;
-		} else if (pai == 47) {
-			pai = wc;
-		}
-
-		ret.push(pai);
-	}
-
-	return ret;
-}
-
-function revert(holds, wc) {
-	var ret = [];
-
-	for (var i = 0; i < holds.length; i++) {
-		var pai = holds[i];
-		if (pai == 51) {
-			pai = wc;
-		} else if (pai == wc) {
-			pai = 47;
-		}
-
-		ret.push(pai);
-	}
-
-	return ret;
-}
-
 function checkCanTingPai(game, seatData) {
 	var tings = seatData.tings = [];
 	var holds = seatData.holds;
-	var wc = game.wildcard;
-	var wcs = getWildcardNum(game, seatData);
 
 	var fnAddTings = function(arr) {
 		for (var i = 0; i < arr.length; i++) {
@@ -447,34 +369,18 @@ function checkCanTingPai(game, seatData) {
 		}
 	};
 
-	if (3 == wcs) {
-		fnAddTings(wzmj.allMJs);
-		return;
-	} else if (2 == wcs) {
-		fnAddTings([ wc ]);
+	if (seatData.holds.length >= HOLDS_NUM) {
+		fnAddTings(wzmj.getAPTings(seatData, 1, getAllMJs(game.numOfSeats)));
 	}
 
-	if (holds.length >= HOLDS_NUM) {
-		fnAddTings(wzmj.getAPTings(seatData, wc));
-
-		if (34 == tings.length) {
-			return;
-		}
-	}
-
-	var pingHus = revert(wcutils.getTings(convert(holds, wc), 51), wc);
+	var pingHus = wcutils.getTings(holds, 1);
 
 	fnAddTings(pingHus);
-
-	if (tings.length > 0) {
-		fnAddTings([ wc ]);
-	}
 }
 
 function checkCanMingPai(game, sd) {
 	var holds = sd.holds;
-	var wc = game.wildcard;
-	var tingOuts = revert(wcutils.getTingOuts(convert(holds, wc), 51));
+	var tingOuts = wcutils.getTingOuts(holds, 1);
 
 	var fnAdd = function(arr) {
 		for (var i = 0; i < arr.length; i++) {
@@ -485,9 +391,7 @@ function checkCanMingPai(game, sd) {
 		}
 	};
 
-	fnAdd(wzmj.getAPTingOuts(sd, wc));
-
-	// TODO: 如果有三张财神，则打出任何一张非财神牌就可以听
+	fnAdd(wzmj.getAPTingOuts(sd, 1));
 
 	sd.canMingPai = tingOuts.length > 0;
 	sd.mingPai = tingOuts;
@@ -513,7 +417,7 @@ function getGameByUserID(userId) {
 }
 
 function hasOperations(seatData) {
-	return (seatData.canGang || seatData.canPeng || seatData.canChi || seatData.canHu);
+	return (seatData.canGang || seatData.canPeng || seatData.canHu);
 }
 
 function sendOptions(game, sd, pai) {
@@ -545,9 +449,6 @@ function sendOptions(game, sd, pai) {
 		} else if (op == ACTION_GANG) {
 			data.gang = true;
 			data.gangpai = sd.gangPai;
-		} else if (op == ACTION_CHI) {
-			data.chi = true;
-			data.chitypes = sd.chiTypes;
 		}
 	}
 
@@ -565,8 +466,6 @@ function sendOperations(game, seatData, pai) {
 			hu: seatData.canHu,
 			peng: seatData.canPeng,
 			gang: seatData.canGang,
-			chi: seatData.canChi,
-			chitypes: seatData.chiTypes,
 			gangpai: seatData.gangPai,
 			si: seatData.seatIndex,
 		};
@@ -652,112 +551,50 @@ function doUserMoPai(game) {
 	sendOperations(game, seat, game.chuPai);
 }
 
-function computeFanScore(game, fan) {
-    if (fan > game.conf.maxFan) {
-        fan = game.conf.maxFan;
-    }
+function getBirds(game) {
+	var si = -1;
 
-    return (1 << fan) * game.baseScore;
-}
-
-// TODO
-function getFan(game, sd, pai) {
-	var info = sd.tingMap[pai];
-	var type = game.conf.type;
-
-	sd.holds.push(pai);
-	if (sd.countMap[pai] != null) {
-		sd.countMap[pai] ++;
-	} else {
-	    sd.countMap[pai] = 1;
+	if (game.yipaoduoxiang >= 0) {
+		si = game.yipaoduoxiang;
+	}
+	else if (game.firstHupai >= 0) {
+		si = game.firstHupai;
 	}
 
-	var qingyise = mjutils.checkQingYiSe(sd) || null;
-	var isJinGouHu = (sd.holds.length == 1 || sd.holds.length == 2) || null;
-	var fan = info.fan;
-
-	if (qingyise) {
-		fan += 2;
+	if (si < 0) {
+		console.log('seat error');
+		return 0;
 	}
 
-	if (isJinGouHu) {
-		fan += 2;
+	var birdNum = game.conf.birds;
+
+	var mjs = game.mahjongs;
+	var index = game.currentIndex;
+	var left = mjs.length - index - 1;
+	var min = birdNum <= left ? birdNum : left;
+	var seat = game.gameSeats[si];
+
+	if (min == 0) {
+		return 0;
 	}
 
-	if (info.pattern == '7pairs') {
-		var dragon = mjutils.calcHoldMultiCardNum(sd, 4);
-		var sanyuan7pairs = mjutils.checkSanYuan7Pairs(sd);
+	var birds = [];
+	var score = 0;
 
-		if (3 == dragon) {
-			fan += 5;
-		} else if (2 == dragon) {
-			fan += 3;
-		} else if (sanyuan7pairs) {
-			fan += 3;
-		} else if (1 == dragon) {
-			fan += 1;
-		}
-	} else {
-		if (mjutils.checkDaSanYuan(sd)) {
-			fan += 3;
-		} else if (mjutils.checkXiaoSanYuan(sd)) {
-			fan += 2;
-		}
+	for (var i = 0; i < min; i++) {
+		var pai = mjs[index + i];
 
-		if (mjutils.checkKaWuXing(sd)) {
-			if (type == 'sykwx') {
-				fan += 2;
-			} else {
-				fan += 1;
+		birds.push(pai);
+
+		if (pai < 40 && pai > 10) {
+			var val = getMJVal(pai);
+			if (val % 4 == 1) {
+				score += 1;
 			}
 		}
-
-		if (mjutils.checkMingSiGui(game, sd)) {
-			fan += 1;
-		} else if (mjutils.checkAnSiGui(game, sd)) {
-			fan += 2;
-		}
 	}
 
-	sd.holds.pop();
-	sd.countMap[pai]--;
-
-	if (fan > game.conf.maxFan) {
-		fan = game.conf.maxFan;
-	}
-
-	return computeFanScore(game, fan);
-}
-
-function getMaxFan(game, sd) {
-	var maxFan = 0;
-
-	for (var k in sd.tingMap) {
-		var fan = getFan(game, sd, parseInt(k));
-
-		if (fan > maxFan) {
-			maxFan = fan;
-		}
-	}
-
-	return maxFan;
-}
-
-function calcBaseScore(game, sd, gs) {
-	var score = 1;
-	var button = game.button;
-
-	if (sd.seatIndex == button || gs.seatIndex == button) {
-		if (sd.conf.maidi || sd.conf.dingdi) {
-			score += 1;
-		}
-
-		if (gs.conf.maidi || gs.conf.dingdi) {
-			score += 1;
-		}
-
-		score *= game.roomInfo.continuousButton;
-	}
+	seat.birds = { score: score, mjs: birds };
 
 	return score;
 }
@@ -767,8 +604,12 @@ function calculateResult(game, roomInfo) {
 	var numOfHued = 0;
 	var conf = game.conf;
 	var type = conf.type;
-	var wc = game.wildcard;
 	var nSeats = game.numOfSeats;
+	var birdsScore = 0;
+
+	if (game.firstHupai >= 0) {
+		birdsScore = getBirds(game);
+	}
 
 	for (var i = 0; i < nSeats; i++) {
 		var sd = game.gameSeats[i];
@@ -776,8 +617,8 @@ function calculateResult(game, roomInfo) {
 		var hu = sd.hu;
 		var holds = sd.holds;
 		var countMap = sd.countMap;
-		var wcs = getWildcardNum(game, sd);
 		var stat = sd.stat;
+		var tips = sd.tips = [];
 
 		for (var a = 0; a < sd.actions.length; ++a) {
 			var ac = sd.actions[a];
@@ -798,8 +639,6 @@ function calculateResult(game, roomInfo) {
 			}
 		}
 
-		var tips = sd.tips = [];
-
 		for (var j = 0; j < sd.huInfo.length; ++j) {
 			var info = sd.huInfo[j];
 			var is8pairs = false;
@@ -814,98 +653,48 @@ function calculateResult(game, roomInfo) {
 			}
 
 			numOfHued += 1;
-			hu.isJinGouHu = (holds.length <= 2) || null;
 
 			var pai = info.pai;
 			var tings = sd.tings;
 			var iszimo = info.iszimo;
 			var fan = 1;
-			var type = 1;
 
 			hu.pai = pai;
-
-			if (wcutils.testWcPair(pai, holds, wc)) {
-				type = 4;
-				tips.push('财神牛对x4倍');
-			} else if (wzmj.testPengPeng(sd, pai, wc)) {
-				type = 4;
-				tips.push('碰碰胡x4倍');
-				hu.isDuiDuiHu = true;
-			} else if (hu.isJinGouHu) {
-				type = 4;
-				tips.push('单吊x4倍');
-			} else if (info.isDiHu) {
-				type = 4;
-				tips.push('地胡x4倍');
-			} else if (info.isTianHu) {
-				type = 4;
-				tips.push('天胡x4倍');
-			} else if (wzmj.testAPHu(sd, pai, 1)) {
-				type = 4;
-				tips.push('硬八对x4倍');
-			} else if (conf.gangkai && hu.action == 'ganghua') {
-				type = 4;
-				tips.push('杠上开花x4倍');
-			} else if (wcs == 3) {
-				if (wcutils.testHu(pai, holds, wc)) {
-					type = 4;
-					tips.push('三财神x4倍');
-				} else if (wzmj.testAPHu(sd, pai, wc)) {
-					type = 4;
-					tips.push('三财神八对x4倍');
-				} else {
-					type = 2;
-					tips.push('三财神x2倍');
-				}
-			} else if (wzmj.testAPHu(sd, pai, wc)) {
-				type = 2;
-				tips.push('软八对x2倍');
+			
+			if (iszimo) {
+				tips.push('自摸');
+				fan = 2;
 			} else if (info.action == 'qiangganghu') {
-				type = 2;
-				tips.push('抢杠胡x2倍');
-			} else if (tings.length == 34) {
-				type = 2;
-				tips.push('财神牛x2倍');
-			} else if (wcutils.testHu(pai, holds, 1)) {
-				type = 2;
-				tips.push('硬牌x2倍');
-			} else if (iszimo) {
-				type = 2;
-				tips.push('自摸x2倍');
+				tips.push('抢杠胡');
 			} else {
-				type = 1;
-				tips.push('软牌x1倍');
+				tips.push('平胡');
 			}
 
-			fan = fan * type;
+			var score = baseScore * fan;
 
-			if (2 == type) {
-				stat.numYP += 1;
-			} else if (4 == type) {
-				stat.numSF += 1;
-			}
+			if (iszimo) {
+				for (var t = 0; t < nSeats; t++) {
+					if (t == i) {
+						continue;
+					}
 
-			var cons = roomInfo.continuousButton;
-			tips.push(cons + '连庄x' + cons + '倍');
+					var gs = game.gameSeats[t];
 
-			for (var t = 0; t < game.gameSeats.length; t++) {
-				if (t == i) {
-					continue;
+					gs.detail.score -= score;
+					sd.detail.score += score;
+					gs.detail.bs -= birdsScore;
+					sd.detail.bs += birdsScore;
 				}
 
-				var gs = game.gameSeats[t];
-
-				var score = calcBaseScore(game, sd, gs);
-
-				score *= type;
+				sd.numZiMo++;
+			} else {
+				var gs = game.gameSeats[info.target];
 
 				gs.detail.score -= score;
 				sd.detail.score += score;
-			}
+				gs.detail.bs -= birdsScore;
+				sd.detail.bs += birdsScore;
 
-			if (iszimo) {
-				sd.numZiMo++;
-			} else {
 				sd.numJiePao++;
 			}
 		}
@@ -913,50 +702,25 @@ function calculateResult(game, roomInfo) {
 		hu.numDianPao = sd.numDianPao;
 	}
 
-	if (game.conf.caishenfen) {
-		for (var i = 0; i < nSeats; i++) {
-			var sd = game.gameSeats[i];
-			var wcs = getWildcardNum(game, sd);
-
-			for (var j = i + 1; j < nSeats; j++) {
-				var gs = game.gameSeats[j];
-				var cscore = wcs - getWildcardNum(game, gs);
-
-				if (sd.hu.hued && sd.hu.pai == wc) {
-					cscore += 1;
-				} else if (gs.hu.hued && gs.hu.pai == wc) {
-					cscore -= 1;
-				}
-
-				sd.detail.cs += cscore;
-				gs.detail.cs -= cscore;
-			}
-		}
-	}
-
 	for (var i = 0; i < nSeats; i++) {
 		var sd = game.gameSeats[i];
-		var detail = sd.detail;
 		var tips = sd.tips;
+		var detail = sd.detail;
 		var gang = detail.gang;
-		var cs = detail.cs;
+		var bs = detail.bs;
 
 		sd.score += detail.score;
+		sd.score += gang;
+		sd.score += bs;
+
 		if (detail.score > 0) {
 			tips.push('胡分: ' + detail.score);
 		} else if (detail.score < 0) {
 			tips.push('被胡分: ' + detail.score);
 		}
 
-		if (conf.gangfen) {
-			sd.score += gang;
-			tips.push('杠算分: ' + gang);
-		}
-
-		if (conf.caishenfen) {
-			sd.score += cs;
-			tips.push('财神分: ' + cs);
-		}
+		tips.push('杠算分: ' + gang);
+		tips.push('抓鸟分: ' + bs);
 
 		if (tips.length > 0) {
 			detail.tips = tips.join('    ');
@@ -999,14 +763,13 @@ function doGameOver(game, userId, forceEnd) {
 		if (isEnd) {
 			endinfo = [];
 			for (var i = 0; i < roomInfo.seats.length; ++i) {
-				var stat = roomInfo.seats[i].stat;
+				var rs = roomInfo.seats[i];
 				endinfo.push({
-					numzz: stat.numZZ,
-					numgang: stat.numGang,
-					nummd: stat.numMD,
-					numdd: stat.numDD,
-					numyp: stat.numYP,
-					numsf: stat.numSF,
+					numzimo: rs.numZiMo,
+					numjiepao: rs.numJiePao,
+					numdianpao: rs.numDianPao,
+					numangang: rs.numAnGang,
+					numminggang: rs.numMingGang,
 				});
 			}
 
@@ -1053,21 +816,10 @@ function doGameOver(game, userId, forceEnd) {
 			rs.numAnGang += sd.numAnGang;
 			rs.numMingGang += sd.numMingGang;
 
-			var rstat = rs.stat;
-			var sstat = sd.stat;
-
-			rstat.numZZ += sstat.numZZ;
-			rstat.numGang += sd.numAnGang + sd.numMingGang;
-			rstat.numMD += sstat.numMD;
-			rstat.numDD += sstat.numDD;
-			rstat.numYP += sstat.numYP;
-			rstat.numSF += sstat.numSF;
-
 			var userRT = {
 				userId:sd.userId,
 				actions:[],
 				pengs:sd.pengs,
-				chis: sd.chis,
 				wangangs:sd.wangangs,
 				diangangs:sd.diangangs,
 				angangs:sd.angangs,
@@ -1078,7 +830,10 @@ function doGameOver(game, userId, forceEnd) {
 				detail: sd.detail,
 				hu: sd.hu,
 				button: game.button == i,
-				wc: game.wildcard,
+			};
+
+			if (sd.birds) {
+				userRT.birds = sd.birds;
 			}
 
 			for (var k in sd.actions) {
@@ -1101,27 +856,18 @@ function doGameOver(game, userId, forceEnd) {
 
 		var nSeats = game.numOfSeats;
 		var old = roomInfo.nextButton;
-		var next = old;
 
-		if (game.firstHupai >= 0) { // 有人胡牌
-			if (old == game.firstHupai) { // 庄家胡牌
-				roomInfo.continuousButton += 1;
-				if (roomInfo.continuousButton > 4) { // 已经四连庄了,换下家
-					next = (old + 1) % nSeats;
-				} else { // 继续连庄
-					next = old;
-				}
-			} else { // 闲家胡牌
-				next = (old + 1) % nSeats;
-			}
+		if (game.yipaoduoxiang >= 0) {
+			roomInfo.nextButton = game.yipaoduoxiang;
+		}
+		else if (game.firstHupai >= 0) {
+			roomInfo.nextButton = game.firstHupai;
 		} else {
-			// 荒庄？TODO
+			// 荒庄不下庄
 		}
 
-		if(old != next) {
-			roomInfo.nextButton = next;
-			roomInfo.continuousButton = 1;
-			db.update_next_button(roomId, next);
+		if (old != roomInfo.nextButton) {
+			db.update_next_button(roomId, roomInfo.nextButton);
 		}
 	}
     
@@ -1232,7 +978,6 @@ exports.setReady = function(userId, callback) {
 			numofmj: numOfMJ,
 			numOfSeats: game.numOfSeats,
 			button: game.button,
-			wildcard: game.wildcard,
 			turn: game.turn,
 			chuPai: game.chuPai,
 		};
@@ -1249,7 +994,6 @@ exports.setReady = function(userId, callback) {
 				diangangs: sd.diangangs,
 				wangangs: sd.wangangs,
 				pengs: sd.pengs,
-				chis: sd.chis,
 				hued: sd.hued,
 				huinfo: sd.huInfo,
 				iszimo: sd.iszimo,
@@ -1354,7 +1098,7 @@ exports.begin = function(roomId) {
 		gameIndex: roomInfo.numOfGames,
 
 		button: roomInfo.nextButton,
-		mahjongs: new Array(TOTAL_MJNUM),
+		mahjongs: new Array(getMJNum(numOfSeats)),
 		currentIndex: 0,
 		numOfSeats: numOfSeats,
 		gameSeats: new Array(numOfSeats),
@@ -1370,8 +1114,6 @@ exports.begin = function(roomId) {
 		baseScore: roomInfo.conf.baseScore,
 
 		dices: [],
-		wildcard: 0,
-
 		options: [],
 	};
 
@@ -1398,8 +1140,6 @@ exports.begin = function(roomId) {
 		//碰了的牌
 		data.pengs = [];
 
-		data.chis = [];
-
 		//玩家手上的牌的数目，用于快速判定碰杠
 		data.countMap = {};
 		//玩家听牌，用于快速判定胡了的番数
@@ -1413,8 +1153,6 @@ exports.begin = function(roomId) {
 
 		//是否可以碰
 		data.canPeng = false;
-		//是否可以吃
-		data.canChi = false;
 		//是否可以胡
 		data.canHu = false;
 		//是否可以出牌
@@ -1441,15 +1179,9 @@ exports.begin = function(roomId) {
 		data.numAnGang = 0;
 		data.numMingGang = 0;
 
-		data.stat = {
-			numZZ: (i == game.button) ? 1 : 0,
-			numMD: 0,
-			numDD: 0,
-			numYP: 0,
-			numSF: 0
-		};
+		data.stat = {};
 
-		data.conf = { maidi: false, dingdi: false };
+		data.conf = {};
 
 		data.tings = [];
 		data.hasMingPai = false;
@@ -1461,7 +1193,7 @@ exports.begin = function(roomId) {
 			gang: 0,
 			fan: 0,
 			score: 0,
-			cs: 0,
+			bs: 0,
 		};
 
 		gameSeatsOfUsers[data.userId] = data;
@@ -1472,8 +1204,6 @@ exports.begin = function(roomId) {
 	shuffle(game);
 
 	dice(game);
-
-	wildcard(game);
 
 	for (var i = 0; i < seats.length; ++i) {
 		var s = seats[i];
@@ -1526,8 +1256,6 @@ exports.begin = function(roomId) {
 
 	var turnSeat = game.gameSeats[game.turn];
 	userMgr.broacastInRoom('game_dice_push', game.dices, turnSeat.userId, true);
-	userMgr.broacastInRoom('game_wildcard_push', game.wildcard, turnSeat.userId, true);
-	console.log('wildcard: ' + game.wildcard);
 
 	setTimeout(function() {
 		deal(game, notify);
@@ -1577,7 +1305,7 @@ exports.chuPai = function(userId, pai) {
 	userMgr.broacastInRoom('game_chupai_notify_push', { userId: seatData.userId, pai: pai }, seatData.userId, true);
 
 	var hasActions = false;
-	var opts = [ [], [], [] ];
+	var opts = [ [], [] ];
 
 	for (var i = 1; i < nSeats; i++) {
 		var si = (game.turn + i) % nSeats;
@@ -1596,11 +1324,6 @@ exports.chuPai = function(userId, pai) {
 
 		if (gs.canGang) {
 			opts[1].push({ si: si, act: ACTION_GANG });
-		}
-
-		checkCanChi(game, gs, pai);
-		if (gs.canChi) {
-			opts[2].push({ si: si, act: ACTION_CHI });
 		}
 	}
 
@@ -1726,117 +1449,6 @@ exports.peng = function(userId) {
 	sendOperations(game, seatData, game.chuPai);
 };
 
-exports.chi = function(userId, data) {
-	var seatData = gameSeatsOfUsers[userId];
-	if (seatData == null) {
-		console.log("can't find user game data.");
-		return;
-	}
-
-	var game = seatData.game;
-	var wc = game.wildcard;
-	var pai = data.pai;
-	var type = data.type;
-
-	if (game.turn == seatData.seatIndex) {
-		console.log("it's your turn.");
-		return;
-	}
-
-	if (!checkOption(seatData, ACTION_CHI)) {
-		console.log('you have not options');
-		return;
-	}
-
-	if (!seatData.canChi) {
-		console.log("seatData.chi == false");
-		return;
-	}
-
-	if (pai != game.chuPai) {
-		console.log('chi not match');
-		return;
-	}
-
-	clearAllOptions(game);
-
-	var c = (pai == 47) ? wc : pai;
-
-	var pai1 = 0;
-	var pai2 = 0;
-
-	if (0 == type) {
-		pai1 = c + 1;
-		pai2 = c + 2;
-	} else if (1 == type) {
-		pai1 = c - 1;
-		pai2 = c + 1;
-	} else if (2 == type) {
-		pai1 = c - 2;
-		pai2 = c - 1;
-	} else {
-		console.log('invalid type: ' + type);
-		return;
-	}
-
-	if (pai1 == wc) {
-		pai1 = 47;
-	}
-
-	if (pai2 == wc) {
-		pai2 = 47;
-	}
-
-	var holds = seatData.holds;
-	var countMap = seatData.countMap;
-	var cards = [ pai1, pai2 ];
-
-	for (var i = 0; i < cards.length; i++) {
-		var card = cards[i];
-		var c = countMap[card];
-		if (c == null || c < 1) {
-			console.log("lack of mj.");
-			return;
-		}
-	}
-
-	for (var i = 0; i < cards.length; i++) {
-		var c = cards[i];
-		var index = holds.indexOf(c);
-		if (index == -1) {
-			console.log("can't find mj.");
-			return;
-		}
-
-		holds.splice(index, 1);
-		countMap[c] --;
-	}
-
-	var chiPai = type * 100 + pai;
-
-	seatData.chis.push(chiPai);
-	game.chuPai = -1;
-
-	recordGameAction(game, seatData.seatIndex, ACTION_PENG, chiPai);
-
-	//广播通知其它玩家
-	userMgr.broacastInRoom('chi_notify_push', { userid: seatData.userId, pai: chiPai }, seatData.userId, true);
-
-	//吃的玩家打牌
-	moveToNextUser(game, seatData.seatIndex);
-
-	checkCanAnGang(game, seatData);
-	checkCanWanGang(game, seatData);
-	checkCanMingPai(game, seatData);
-
-	//广播通知玩家出牌方
-	seatData.canChuPai = true;
-	userMgr.broacastInRoom('game_chupai_push', seatData.userId, seatData.userId, true);
-
-	//通知玩家做对应操作
-	sendOperations(game, seatData, game.chuPai);
-};
-
 exports.isPlaying = function(userId) {
 	var seatData = gameSeatsOfUsers[userId];
 	if (seatData == null) {
@@ -1903,7 +1515,6 @@ function doGang(game, turnSeat, seatData, gangtype, numOfCnt, pai) {
 		}
 	}
 
-	//从此人牌中扣除
 	for (var i = 0; i < numOfCnt; ++i) {
 		var index = seatData.holds.indexOf(pai);
 		if (index == -1) {
@@ -1929,8 +1540,8 @@ function doGang(game, turnSeat, seatData, gangtype, numOfCnt, pai) {
 		seatData.numAnGang += 1;
 	} else if(gangtype == "diangang") {
 		seatData.diangangs.push(pai);
-		ac = recordUserAction(game, seatData, "diangang");
-		ac.score = baseScore;
+		ac = recordUserAction(game, seatData, "diangang", gameTurn);
+		ac.score = baseScore * 2;
 
 		var fs = turnSeat;
 		recordUserAction(game, fs, "fanggang", seatIndex);
@@ -1958,7 +1569,7 @@ function doGang(game, turnSeat, seatData, gangtype, numOfCnt, pai) {
 }
 
 exports.ming = function(uid, data) {
-	// 温州麻将不能明牌
+	// 转转麻将不能明牌
 };
 
 exports.gang = function(userId, pai) {
@@ -2126,7 +1737,7 @@ exports.hu = function(userId) {
 		    game.yipaoduoxiang = game.turn;
 		}
 	}
-	
+
 	if (game.firstHupai < 0) {
 		game.firstHupai = seatIndex;
 	}
@@ -2156,6 +1767,47 @@ exports.hu = function(userId) {
 		game.lastHuPaiSeat = seatIndex;
 	}
 
+	//清空所有非胡牌操作
+	var options = game.options;
+	var hasAction = false;
+
+	for (var i = 0; i < game.gameSeats.length; ++i) {
+		var gs = game.gameSeats[i];
+
+		gs.canPeng = false;
+		gs.canGang = false;
+		gs.canChuPai = false;
+	}
+
+	if (options.length > 0) {
+		var op = options[0];
+		var si = op.si;
+		var sd = game.gameSeats[si];
+		var ops = [ op.act ];
+
+		if (op.act == ACTION_HU) {
+			sd.options = ops;
+			sendOptions(game, sd, game.chuPai);
+			options.splice(0, ops.length);
+			hasAction = true;
+		}
+
+		for (var i = 0; i < options.length;) {
+			var opt = options[i];
+
+			if (opt.act != ACTION_HU) {
+				options.splice(i, 1);
+			} else {
+				i++;
+			}
+		}
+	}
+
+	//如果还有人可以胡牌，则等待
+	if (hasAction) {
+		return;
+	}
+
 	doGameOver(game, userId);
 };
 
@@ -2165,7 +1817,7 @@ exports.guo = function(userId) {
 		console.log("can't find user game data.");
 		return;
 	}
-	
+
 	var seatIndex = seatData.seatIndex;
 	var game = seatData.game;
 
@@ -2208,6 +1860,11 @@ exports.guo = function(userId) {
 		return;
 	}
 
+	if (game.firstHupai >= 0) {
+		doGameOver(game, userId);
+		return;
+	}
+
 	//如果是已打出的牌，则需要通知
 	if (game.chuPai >= 0) {
 		var uid = game.gameSeats[game.turn].userId;
@@ -2244,7 +1901,6 @@ exports.hasBegan = function(roomId) {
 
 	return false;
 };
-
 
 var dissolvingList = [];
 
@@ -2431,25 +2087,23 @@ setInterval(update, 1000);
 
 exports.parseConf = function (roomConf, conf) {
 	var type = roomConf.type;
+	var hu = roomConf.hu;
+	var zimo = false;
 
-	conf.gangfen = roomConf.gangfen || false;
-	conf.caishenfen = roomConf.caishenfen || false;
-	conf.gangkai = roomConf.gangkai || false;
+	if (hu && hu > 0) {
+		zimo = true;
+	}
+
+	conf.zimo = zimo;
+	conf.birds = roomConf.birds || 0;
 }
 
 exports.checkConf = function() {
 	return true;
-}
+};
 
 exports.initRoomSeat = function(seat) {
-	var stat = seat.stat;
 
-	stat.numZZ = 0;
-	stat.numGang = 0;
-	stat.numMD = 0;
-	stat.numDD = 0;
-	stat.numYP = 0;
-	stat.numSF = 0;
 };
 
 

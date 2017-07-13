@@ -308,6 +308,7 @@ function testHu(mj, mjArr, hunMj) {
 	if (ndHunAll <= curHunNum) {
 		hasNum = curHunNum - ndHunAll;
 		isHu = canHu(hasNum, sptArr[1]);
+
 		if (isHu) {
 			return true;
 		}
@@ -341,6 +342,26 @@ function testHu(mj, mjArr, hunMj) {
 	}
 
 	return false;
+}
+
+function testAllHu(mjArr, hunMj) {
+	var tmpArr = mjArr.slice(0);
+
+	var sptArr = seprateArr(tmpArr, hunMj);
+	var curHunNum = sptArr[0].length;
+	if (curHunNum > 3) {
+		return true;
+	}
+
+	var ndHunAll = 0;
+
+	for (var i = 1; i < 5; i++) {
+		g_NeedHunCount = 4
+		getNeedHunInSub(sptArr[i], 0);
+		ndHunAll += g_NeedHunCount;
+	}
+
+	return ndHunAll + 1 == curHunNum;
 }
 
 function getJiangNeedHum(arr) {
@@ -426,7 +447,7 @@ function getTingArr(mjArr, hunMj) {
 	}
 
 	if (curHunNum - needNum == 1) {
-		isAllHu = True;
+		isAllHu = true;
 	}
 
 	if (isAllHu) {
@@ -603,7 +624,28 @@ function getTingNumArr(mjArr, hunMj) {
 	return tingArr;
 }
 
+function testWcPair(mj, mjArr, hunMj) {
+	var tmpArr = mjArr.slice(0);
+	if (mj != 0) {
+		tmpArr.push(mj);
+	}
+
+	var sptArr = seprateArr(tmpArr, hunMj);
+	var curHunNum = sptArr[0].length;
+	var ndHunAll = 0;
+
+	for (var i = 1; i < 5; i++) {
+		g_NeedHunCount = 4
+		getNeedHunInSub(sptArr[i], 0);
+		ndHunAll += g_NeedHunCount;
+	}
+
+	return curHunNum - ndHunAll == 2;
+}
+
 exports.getTings = getTingArr;
 exports.getTingOuts = getTingNumArr;
 exports.testHu = testHu;
+exports.testAllHu = testAllHu;
+exports.testWcPair = testWcPair;
 

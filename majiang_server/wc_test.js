@@ -18,6 +18,40 @@ var g_mjsArr = [
     41, 42, 43, 44, 45, 46, 47
 ];
 
+function convert(holds, wc) {
+	var ret = [];
+
+	for (var i = 0; i < holds.length; i++) {
+		var pai = holds[i];
+		if (pai == wc) {
+			pai = 51;
+		} else if (pai == 47) {
+			pai = wc;
+		}
+
+		ret.push(pai);
+	}
+
+	return ret;
+}
+
+function revert(holds, wc) {
+	var ret = [];
+
+	for (var i = 0; i < holds.length; i++) {
+		var pai = holds[i];
+		if (pai == 51) {
+			pai = wc;
+		} else if (pai == wc) {
+			pai = 47;
+		}
+
+		ret.push(pai);
+	}
+
+	return ret;
+}
+
 // print 'reqOtherAction +2'
 // samArr = [111, 111, 111, 111, 214, 214, 214, 214, 315, 315, 315, 315, 118, 119, 119 ]
 // begin = datetime.datetime.now()
@@ -140,4 +174,17 @@ var tingNumArr = [45,45,45,15,16,17,18,19,22,22,32,34,36,36];//运行时间:0:00
     }
     //rstr += "]"
     console.log(ret);
+
+    var holds = [ 47, 47, 41, 41 ];
+
+    var conv = convert(holds, 46);
+
+    console.log(conv);
+
+    var tings = wc.getTings(conv, 51);
+    console.log(tings);
+
+    var pingHus = revert(tings, 46);
+
+    console.log(pingHus);
 
